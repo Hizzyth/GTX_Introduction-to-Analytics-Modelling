@@ -1,0 +1,124 @@
+---
+title: "Homework_Week2"
+author: "HT"
+date: "5/24/2019"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+# Question 4.2 : Clustering Anaysis 
+
+# Loading libraries and dataset
+```{r}
+
+library(ggplot2) # for generating plots
+library(purrr) # for map_dbl function (Ref: https://uc-r.github.io/kmeans_clustering) 
+
+
+# Reading dataset and removing any na's
+iris_df <- iris
+iris_df <- na.omit(iris_df)
+
+head(iris_df)
+
+# Plotting data to see the distribution of data points
+
+ggpairs(iris_df) 
+
+
+#Looking at the GGpair plots histograms, the overlap between species characteristics is minimum for Petal length and Petal width. So those will be best combinations of predictors
+
+# Scaling the data to minimize the effect of aboslute values, also dropping the Species Column to make it all numerical for further analysis
+
+iris_df_scaled <- scale(iris_df[,-5])
+
+head(iris_df_scaled)
+
+```
+ 
+
+# Analysis with Kmeans
+
+```{r}
+
+# Setting seed as part of general best practise for improving repeatability of analysis
+set.seed(456)
+
+# Running K-means on the scaled data with 3 known centers as raw data (Species)
+iris_k <- kmeans(iris_df_scaled, 3)
+
+# Exploring the k-means components (Cluster, Centers, Totss, Withinss, tot.withninss,betweenss,size etc.)
+iris_k
+
+# Plotting the original dataframe using the cluster classification from K-means components, this will serve as a baseline for this analysis.
+plot(iris_df, col = iris_k$cluster)
+
+# Expanding the analysis to higher K values, I plan to explore up to K= 15.
+k_selection <- list()
+
+for(i in 1:15){
+  k_selection[[i]] <- kmeans(iris_df_scaled,i)
+}
+
+# Exploring the K means components for changing K values
+k_selection
+
+# Plotting the data set with newly created clusters to observe how it changes
+for (i in 1:15){
+  plot(iris_df, col = k_selection[[i]]$cluster)
+}
+
+# Upon plotting it was very clear that we can split the data into 15 clusters, but at this point it doesn't tell us the optimum number of clusters.
+
+# Using Within cluster sum of square to determine optimum number of clusters
+
+wisos <- function(k){
+  kmeans(iris_df_scaled, k, nstart = 10)$tot.withinss
+}
+
+# Computing and plotting wisos for K = 1 to 15
+
+k.values <- 1:15
+
+wisos_Values <- map_dbl(k.values,wisos)
+
+# Visualizing the values of clusters wrt Sum of Squares
+plot(k.values,wisos_Values,
+     type = "b")
+
+# From this visualization it is clear that 3 clusters will suffice and there is not much significant improvement in center distance unless data is broken into too many clusters.
+
+
+# Plotting the data with final 3 clusters
+
+plot(iris_df, col = k_selection[[3]]$cluster)
+
+
+```
+
+# QUESTION 5.1 : Outlier Test
+
+```{r}
+
+library(outliers) # To identify the outlier in dataset
+
+# Reading the data and setting header
+crime_df<- read.table('uscrime.txt', header = TRUE)
+
+# create histogram for last column Crime (Crime per 100,000 people), this will give an idea of distribution
+hist(crime_df$Crime, breaks = 10, xlab = "Crime per 100,000 people", ylab = "Count of Cities", main = "City Crime Rates")
+
+# Create boxplot to visualize outliers and in which direction they exist
+boxplot(crime_df$Crime, ylab= "Crime per 100,000 people", main = "City Crime Rates")
+
+# Checking for the value of outlier
+Crime_df_Outlier <- outlier(crime_df$Crime)
+
+# Running grubbs test to confirm the outlier identified with Outlier function. For Grubbs test I decided to run Type 10 as it was evident in Box plot that the outlier is on top tail only and nothing on the bottom tail end.
+
+grubbs.test(crime_df$Crime, type = 10)
+```
+
