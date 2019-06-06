@@ -1,0 +1,62 @@
+---
+title: "Week3_Linear Regression"
+author: "HT"
+date: "6/5/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(GGally)
+
+# Reading the file and exploring header
+crime_df <- read.table("uscrime.txt", header = TRUE)
+
+head(crime_df)
+
+ggpairs(crime_df)
+
+
+# Creating linear model with all columns (except crime) to predict Crime 
+crime.model <- lm(Crime~M+So+Ed+Po1+Po2+LF+M.F+Pop+NW+U1+U2+Wealth+Ineq+Prob+Time, data = crime_df)
+summary(crime.model)
+par(mfrow = c(2,2))
+plot(crime.model)
+ 
+#Based on model summary value, create a new model with P-value ess than .05
+
+crime.model.refined <- lm(Crime~M+Ed+Po1+Ineq+Prob,crime_df)
+summary(crime.model.refined)
+plot(crime.model.refined)
+
+# Visualize the distribution, to get an estimated idea of predicted crime value later
+plot(Crime~M+Ed+Po1+Ineq+Prob,crime_df)
+
+# Set dataframe for test purpose
+crime.test <- data.frame(M= 14.0,So= 0, Ed=10.0,Po1=12.0,Po2= 15.5,LF= 0.640,M.F= 94.0,Pop= 150,NW= 1.1,U1= 0.120,U2= 3.6,Wealth= 3200,Ineq= 20.1,Prob= 0.04,Time = 39.0)
+
+# Predicting Crime using Model 1 (All predictors)
+crime.predict.model1 <- predict(crime.model, crime.test)
+summary(crime.predict.model1)
+
+
+# Predicting Crime using Model 2 (Refined, Using 5 predictors)
+crime.predict.model2 <- predict(crime.model.refined, crime.test)
+summary(crime.predict.model2)
+
+
+library(rsq) # to calculated R-squared values and check the variability in data. I will be using the rsq.lr, R squared value for linear model.
+
+# For Model 1
+rsq.lr(crime.model)
+
+# For Model 2
+rsq.lr(crime.model.refined)
+
+# Although both models shows good variability and a small random/other effects, model 2 looks to be better at predicting the crime rate. As value predicted by Model 1 is very small, and when we look at distribution of data the prediction of Model 2 >1000 looks more reasonable.
+
+```

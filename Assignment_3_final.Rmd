@@ -1,0 +1,91 @@
+---
+title: "Coursework_Week3"
+author: "HT"
+date: "6/3/2019"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(forecast)
+library(reshape2)
+library(dplyr)
+library(stringr)
+library(lubridate)
+
+
+
+
+# Reading the temperature source file
+temp<- read.table("temps.txt", header = TRUE, sep = "\t")
+
+# Reshaping the data and making it in a tabular form to use later in analysis
+temp_df <- melt(temp[,c("DAY","X1996","X1997","X1998","X1999","X2000","X2001","X2002","X2003","X2004","X2005","X2006","X2007","X2008","X2009","X2010","X2011","X2012","X2013","X2014","X2015")])
+
+# Formatting the data: Changing the year to clean value, changing date to a proper date format, using that to calculate the day of year, as otherwise time series was converting date to a very big continous number
+temp_df <- temp_df%>%
+  mutate(variable = str_replace(variable,"X",""))%>%
+  mutate(Dt = dmy(paste(DAY, variable, sep = "-")))%>%
+  select(Dt,variable,value)%>%
+  mutate(dayvalue = yday(as.Date(Dt)))%>%
+  select(dayvalue, variable, value)
+
+# Renaming columns
+colnames(temp_df)[colnames(temp_df)=='variable'] <- 'year'
+colnames(temp_df)[colnames(temp_df)=='value'] <- 'temp'
+
+#plotting data to see the general trend. Threshold for summer end is indicated by y intercept set to 80F.
+ggplot(temp_df,aes(x= dayvalue, y= temp, color = year))+
+  geom_boxplot() + 
+  theme_bw()+
+  geom_smooth(alpha = .05)+
+  labs(title = "Initial Data State")+
+  geom_hline( yintercept = 80, linetype = "dashed", color = "black")
+
+# From initial potting it is not very clear if summer end is changing or not
+
+
+# Converting to time series
+temp_df_ts <-ts(temp_df$temp, start = 1996, end = 2015, frequency = 123)
+plot(temp_df_ts)
+temp_df_ts
+
+
+# Using holtwinters method for making model
+temp_df_ts_model <- HoltWinters(temp_df_ts, gamma = FALSE,start.periods = 1996)
+
+# Checking the parameters of Model
+temp_df_ts_model
+
+# Plotting model to see the trends, levels and Xhats
+plot(fitted(temp_df_ts_model))
+
+
+# Decomposing data to check for seasonality and trends
+
+temp_df_ts_components <- decompose(temp_df_ts)
+
+head(temp_df_ts_components$seasonal)
+plot(temp_df_ts_components)
+
+
+# Forecasting the trend to 1 year ahead
+temp_df_ts_forecast <- forecast(temp_df_ts_model, h = 122)
+
+
+# Generating a chart to visualize how much is residual compared to forecasted values for given temperature
+qplot(fitted(temp_df_ts_forecast),resid(temp_df_ts_forecast))+geom_smooth(method = "auto", alpha = .05) + theme_classic()
+
+
+```
+
+
