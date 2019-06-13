@@ -1,0 +1,333 @@
+---
+title: "Week4_Coursework"
+author: "HT"
+date: "6/8/2019"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Question 9.1 : PCA for US Crime rates
+```{r Question 9.1}
+rm(list = ls())
+
+library(dplyr)
+library(factoextra)
+
+
+
+set.seed(345)
+
+# Reading the data
+
+crime <- read.table("uscrime.txt", header = TRUE, stringsAsFactors = TRUE)
+
+# Creating PCA model
+crime.pca <- prcomp(crime,center = TRUE, scale. = TRUE)
+crime.pca
+
+
+# Visualizing 
+fviz_pca_ind(crime.pca,
+              col.ind = "cos2", # Color by the quality of representation
+              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+              repel = TRUE     # Avoid text overlapping
+             )
+
+fviz_pca_var(crime.pca,
+              col.ind = "contrib", # Color by the quality of representation
+              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+              repel = TRUE     # Avoid text overlapping
+             )
+
+# Building regression model with PCA 1 only
+crime.pca.lm <- lm(crime$Crime~ crime.pca$x[,1])
+summary(crime.pca.lm)
+
+# Visualize the eigen values for variance distribution
+fviz_eig(crime.pca)
+
+# Based on explained variance, picking up PCA from 1 to 6.
+crime.pca.lm_multiple <- lm(crime$Crime~crime.pca$x[,1:6])
+summary(crime.pca.lm_multiple)
+
+# Unclear on Backtronsforming data and hence couldn't proceed with predicting the new city.
+
+
+```
+
+# Question 10.1 - Regression Tree and Random Forest Model
+
+```{r Question 10.1, echo=TRUE}
+library(ranger) # a faster implementation of randomForest
+library(caret)  # an aggregator package for performing many machine learning models
+library(dplyr)  # for piping and data wrangling  
+library(rpart)  # creating models
+library(rpart.plot) # visualizing models
+library(randomForest) # creating randomforest models
+library(rsample) #Spliting data into training and test models
+library(randomForestExplainer) # visualizing results for easier interpretation
+library(ggplot2) # for plotting charts
+
+set.seed(143)
+
+# First create a tree on crime data
+crime_data <- read.table ("uscrime.txt", stringsAsFactors = TRUE, header = TRUE)
+
+crime_data.split <- initial_split(crime_data, prop = .8)
+crime_data.train <- training(crime_data.split)
+crime_data.test <- testing(crime_data.split)
+
+crime.tree <- rpart(Crime~., 
+                    data= crime_data.train)
+
+head(crime.tree$cptable)
+
+
+printcp(crime.tree) # displays the results
+
+plotcp(crime.tree) # visualize cross validation results
+rpart.plot(crime.tree)
+text(crime.tree)
+summary(crime.tree) # detailed summary of tree splits
+
+
+# Calculating RMSE for 1st model as baseline
+crime.predict_model1 <- predict(crime.tree, crime_data.test)
+
+RMSE(crime.predict_model1, crime_data.test$Crime)
+
+# function to get optimal cp
+get_cp <- function(x) {
+  min    <- which.min(x$cptable[, "xerror"])
+  cp <- x$cptable[min, "CP"] 
+}
+
+
+
+# Prune the Tree to avoid overfitting
+# Using complexity parameter with minimum cross validation error to prune the tree
+
+crime.tree.pruned <- prune(crime.tree, 
+                           cp = get_cp(crime.tree)
+                           )
+
+crime.tree.pruned
+rpart.plot(crime.tree.pruned, uniform = TRUE,
+     main = "Pruned Crime Data classification tree")
+text(crime.tree.pruned, use.n = TRUE, all = TRUE, cex = .5)
+
+crime.predict_model2 <- predict(crime.tree.pruned, crime_data.test)
+
+
+RMSE(crime.predict_model2, crime_data.test$Crime)
+
+# Conclusion from this analysis is that reducing the number of branches actually lead to higher RMSE i.e. higher variation, so I will continue to use model 1 in case of regression tree model.
+
+
+# Random forest Model
+
+set.seed(213)
+crime.random.tree <- randomForest(Crime~., crime_data.train, importance = TRUE)
+crime.random.tree
+
+plot(crime.random.tree)
+
+# Number of trees with lowest error
+which.min(crime.random.tree$mse)
+
+# RMSE of the optimal random forest
+sqrt(crime.random.tree$mse[which.min(crime.random.tree$mse)])
+
+plot_min_depth_distribution(crime.random.tree, mean_sample = "relevant trees")
+
+plot_multi_way_importance(crime.random.tree, x_measure = "mse_increase", y_measure = "node_purity_increase", size_measure = "p_value", no_of_labels = 5)
+
+explain_forest(crime.random.tree, interactions = TRUE, data = crime_data)
+
+
+```
+
+
+# QUESTION 10.3 : Logistic Regression and Cost of Classification (along with setting Threshold)
+
+```{r Question 10.3, echo=TRUE}
+
+library(tidyverse)
+
+set.seed(332)
+
+
+credit.card <- read.table("germancredit.txt", sep = " ", stringsAsFactors = TRUE)
+
+head(credit.card)
+
+credit.card.split <- initial_split(credit.card, prop = .8)
+credit.card.train <- training(credit.card.split)
+credit.card.test <- testing(credit.card.split)
+
+
+credit.card.reg_model <- glm(V21~.,family = binomial(link = "logit") ,credit.card.train)
+
+# error pops up for y values must be 0<=y<=1
+# converting the V21 response to 1 and 0
+
+credit.card$V21[credit.card$V21 == 1] <- 0
+credit.card$V21[credit.card$V21 > 1] <- 1
+
+credit.card.split <- initial_split(credit.card, prop = .8)
+credit.card.train <- training(credit.card.split)
+credit.card.test <- testing(credit.card.split)
+
+credit.card.reg_model <- glm(V21~.,family = binomial(link = "logit") ,credit.card.train)
+
+summary(credit.card.reg_model)
+
+
+# High degree of deviance from 1st model
+
+# Checking the importance of variables to refine the model
+
+varImp(credit.card.reg_model)
+
+yhat.model1 <- predict(credit.card.reg_model,credit.card.test, type = "response")
+
+yhat.model1
+# Refined model 2
+
+credit.card.reg_model.refined <- glm(V21~ V1+V2+V3+V4+V5+V6+V8+V14+V20,family = binomial(link = "logit") ,credit.card.train )
+
+summary(credit.card.reg_model.refined)
+
+yhat.model2 <- predict(credit.card.reg_model.refined, credit.card.test, type = "response")
+
+anova(credit.card.reg_model, credit.card.reg_model.refined, test = "Chisq")
+
+# Comparing the 2 models
+
+library(ROCR) # visualize the ROC and calculate AUC
+
+# plotting ROC for both models
+par(mfrow=c(1, 2))
+
+# Model 1 ROC
+prediction(yhat.model1, credit.card.test$V21)%>%
+  performance(measure = "tpr", x.measure = "fpr") %>%
+  plot()
+
+# Model 2 ROC
+prediction(yhat.model2, credit.card.test$V21)%>%
+  performance(measure = "tpr", x.measure = "fpr") %>%
+  plot()
+  
+
+# Calculating the AUC for both models
+# Model 1 AUC
+prediction(yhat.model1, credit.card.test$V21)%>%
+ performance(measure = "auc") %>%
+  .@y.values
+# Model 2 AUC
+prediction(yhat.model2, credit.card.test$V21)%>%
+ performance(measure = "auc") %>%
+  .@y.values
+
+# Area under curve is slightly better in Model 1 , and also visually we can see that Model 1 does better job at identifying True positives, compared to Model 2 which is more biased towards false positives.
+
+
+# 10.3.2 Calculating the Cost of classification
+
+# Setting cost of false positive
+
+false_positive_cost <- 1
+
+# Setting cost of false negative as per question
+false_negative_cost <- 5
+
+# Calculating the total cost
+total_cost <- false_positive_cost * false_positive_count +
+  false_negative_cost * false_negative_count
+
+# Creating data frame for storing the cost against each threshold
+result_df <- data.frame(
+
+  threshold = seq(from = 0.00, to = 1.0, by = 0.01),
+
+  expected_cost = rep(0, 101)
+
+)
+
+
+# For loop to calculate the cost of classification
+i <- 0
+
+for(threshold in seq(from = 0.00, to = 1.0, by = 0.01)){
+
+  i <- i + 1
+
+  prediction_v <- 1 + as.numeric(yhat.model1 >= threshold)
+
+  match_count <- sum(prediction_v == credit.card.train$V21)
+
+  true_positive_count <- sum(
+
+    prediction_v * credit.card.train$V21 == 1
+
+  )
+
+  true_negative_count <- sum(
+
+    prediction_v * credit.card.train$V21 == 4
+
+  )
+
+  false_positive_count <- sum(prediction_v < credit.card.train$V21)
+
+  false_negative_count <- sum(prediction_v > credit.card.train$V21)
+
+  total_cost <-
+
+    false_positive_cost * false_positive_count +
+
+    false_negative_cost * false_negative_count
+
+  expected_cost <- total_cost / nrow(credit.card.train)
+
+  result_df$expected_cost[i] <- expected_cost
+
+}
+
+
+# Calculating the minimum cost of Classification
+result_df[which(result_df$expected_cost == min(result_df$expected_cost)), ]
+
+# Checking for cost of classification based on my model's threshold
+result_df[which(result_df$threshold == 0.93), ]
+
+# Creating Visualization for Threshold results vs Cost of Classification. I am using the values from 1st and end model for Threshold and based on that Dashed and dotted lines are drawn.
+
+ggplot( aes(x = threshold, y = expected_cost), data = result_df)+
+  geom_point()+
+  geom_smooth()+
+  geom_rug()+
+  geom_vline(xintercept = .76,linetype="dashed", 
+                color = "red", size = 2)+
+  geom_hline(yintercept = 3.65,linetype="dotted", 
+                color = "red", size = 2)+
+  geom_vline(xintercept = .93, linetype = "dashed",
+             color = "green", size = 1.5)+  
+  geom_hline(yintercept = 3.55, linetype = "dotted",
+             color = "green", size = 1.5)+
+  ggtitle("Threshold vs Cost of Classification", )
+
+
+
+```
+
