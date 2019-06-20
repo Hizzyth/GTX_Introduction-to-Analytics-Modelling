@@ -1,0 +1,195 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r include= TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## QUESTION: 11.1
+```{r}
+# Importing libraries
+library(dplyr) # For EDA purpose
+library(ggplot2) # for plotting graphs
+library(caret) # For stepwise regression 
+library(rsample) #Spliting data into training and test models
+```
+
+# Stepwise Regression 
+```{r}
+
+# Reading the data
+uscrime.data <- read.delim("uscrime.txt", header = TRUE, stringsAsFactors = TRUE)
+
+
+set.seed(287)
+
+# Creating a full preditor model for reference
+crime.full.model <- lm(Crime~., data = uscrime.data)
+
+# Summarizing the model
+summary(crime.full.model)
+
+
+
+set.seed(396)
+
+# Set up repeated k-fold cross-validation
+crime.model.train.control <- trainControl(method = "cv", number = 15)
+
+# Creating a step model using leapSeq method in train function of Caret library
+# nv max is set to 15 to consider all the predictors
+
+crime.model.step <- train(Crime~., data = uscrime.data,
+                            method = "leapSeq",
+                            tuneGrid = data.frame(nvmax = 1:15),
+                            trControl = crime.model.train.control
+                            )
+# Analyzing RMSE with each predictor combination
+crime.model.step$results
+
+# Looking for the best tuned method
+crime.model.step$bestTune
+
+# plotting the information to see which one has the minimun error
+plot(crime.model.step)
+
+
+# Getting coefficients predictor model)
+coef(crime.model.step$finalModel, as.numeric(crime.model.step$bestTune))
+
+summary(crime.model.step)
+
+crime.model.step_based <- lm(Crime ~ M+Po1+U2+Ineq+Prob, data = uscrime.data)
+summary(crime.model.step_based)
+```
+
+# Lasso Model
+```{r}
+library(glmnet)
+
+
+
+set.seed(729)
+# breaking data into x : Matrix of predictor variables and y = Outcome variable
+crime.x <- as.matrix(scale(uscrime.data[,-16]))
+crime.y <- as.matrix(scale(uscrime.data$Crime))
+
+# creating the Lasso model, alpha is set to 1 for lasso method
+crime.lasso.model <- cv.glmnet(crime.x, crime.y,
+                               alpha = 1,
+                                nfolds = 5,
+                               type.measure="mse",
+                               family="gaussian")
+
+# Checking for value of optimal Lambda
+coef(crime.lasso.model, crime.lasso.model$lambda.1se)
+
+# Plotting the model to visualize results
+plot(crime.lasso.model)
+
+crime.model.refined_Lasso_based <- lm(Crime ~ M+Ed+Po1+M.F+NW+Ineq+Prob, data = uscrime.data)
+summary(crime.model.refined_Lasso_based)
+
+# Number of predictors used in Lasso were 7 instead of 6 from Step Regression and R-Squared value improved from .65 to .75.
+```
+
+## Elastic Net
+```{r}
+
+# Converting to scaled x and y values
+crime.x <- as.matrix(scale(uscrime.data[,-16]))
+crime.y <- as.matrix(scale(uscrime.data$Crime))
+
+set.seed(192)
+
+# Running 2 elastic models with alpha .25 and .75
+crime.elastic.model1<- cv.glmnet(crime.x, crime.y, alpha = .25)
+crime.elastic.model2<- cv.glmnet(crime.x, crime.y, alpha = .75)
+
+# plotting the 2 models
+par(mfrow = c(1, 2), mar = c(6, 4, 6, 2) + 0.1)
+
+plot(crime.elastic.model1, xvar = "lambda", main = "Elastic Net (Alpha = .25)\n\n\n")
+plot(crime.elastic.model2, xvar = "lambda", main = "Elastic Net (Alpha = .75)\n\n\n")
+
+# Optimizing the value of alpha
+
+# maintain the same folds across all models
+fold_id <- sample(1:10, size = length(crime.y), replace=TRUE)
+
+# search across a range of alphas
+tuning_grid <- tibble::tibble(
+  alpha      = seq(0, 1, by = .1),
+  mse_min    = NA,
+  mse_1se    = NA,
+  lambda_min = NA,
+  lambda_1se = NA
+)
+
+# For loop to check for different values of alpha
+for(i in seq_along(tuning_grid$alpha)) {
+  
+  # fit CV model for each alpha value
+  fit <- cv.glmnet(crime.x, crime.y, alpha = tuning_grid$alpha[i], foldid = fold_id)
+  
+  # extract MSE and lambda values
+  tuning_grid$mse_min[i]    <- fit$cvm[fit$lambda == fit$lambda.min]
+  tuning_grid$mse_1se[i]    <- fit$cvm[fit$lambda == fit$lambda.1se]
+  tuning_grid$lambda_min[i] <- fit$lambda.min
+  tuning_grid$lambda_1se[i] <- fit$lambda.1se
+}
+
+# From the tibble it is clear that alpha value close to 1 has the best results i.e. a Lasso fit
+tuning_grid
+
+# Visualizing the alpha performance
+tuning_grid %>%
+  mutate(se = mse_1se - mse_min) %>%
+  ggplot(aes(alpha, mse_min)) +
+  geom_line(size = 2) +
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
+  ggtitle("MSE ± one standard error")
+
+# Although alpha 1 is best fit, but I will use alpha 0.9 the second best scenario to compare the model performance between Lasso and Elastic.
+
+crime.elastic.model_final <- cv.glmnet(crime.x, crime.y, alpha = .9,nfolds = 5,type.measure="mse",family="gaussian")
+
+#Plotting the final model
+par(mfrow=c(1,1))
+plot(crime.elastic.model_final, xvar = "lambda", main = "Elastic Net (Alpha = .9)\n\n\n")
+
+coef(crime.elastic.model_final, crime.elastic.model_final$lambda.1se)
+
+crime.model.refined_elastic_based <- lm(Crime ~ M+Po1+M.F+NW+Ineq+Prob, data = uscrime.data)
+summary(crime.model.refined_elastic_based)
+
+## Number of predictors dropped again from Lasso to Elastic Net, also there is drop in R-squared value from .75 to .71. If compared back to Step regression, Elastic net did a better job of picking same number of predictors (6) but the ones with better R-Squared performance.
+
+```
+
+# Question 12.2
+
+```{r}
+library(FrF2)
+
+set.seed(8)
+
+
+# Designing the Factorial fraction for houses with fictious features
+
+FFD<- FrF2(16,10, factor.names = list(Yard ="", Solar_Roof="",Italian_Kitchen ="", Golf_Course ="", Pool ="", Neighborhood="", Schools="",Gated="",HOA="",Parks=""))
+
+FFD
+
+```
