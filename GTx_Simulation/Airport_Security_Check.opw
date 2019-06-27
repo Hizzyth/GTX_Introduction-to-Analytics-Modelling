@@ -1,0 +1,16 @@
+[RESOURCES]
+Resource 3
+Resource 2
+Resource 1
+Resource 4
+[VARIABLES]
+Security Cleared.NumberOut
+Passengers Coming for Security Check.NumberOut
+Station4.NumberIn
+Station1.NumberIn
+Station3.NumberIn
+Station2.NumberIn
+Station4.NumberOut
+Station1.NumberOut
+Station3.NumberOut
+Station2.NumberOut

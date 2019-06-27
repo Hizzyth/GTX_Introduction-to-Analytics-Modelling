@@ -1,0 +1,99 @@
+
+                                      ARENA Simulation Results
+                               hthakur22@gmail.com - License: STUDENT
+
+                                  Summary for Replication 1 of 1
+
+Project: Airport_Security_Simulation_Scenario5                       Run execution date : 6/26/2019
+Analyst: hthakur22@gmail.com                                         Model revision date: 6/26/2019
+
+Replication ended at time      : 540.0 Minutes 
+Base Time Units: Minutes
+
+                                           TALLY VARIABLES
+
+Identifier                                  Average   Half Width  Minimum    Maximum   Observations
+___________________________________________________________________________________________________
+
+Enrty.VATime                                1.4918     .02898     .52152     6.0054       2577    
+Enrty.NVATime                               .00000     .00000     .00000     .00000       2577    
+Enrty.WaitTime                              7.8503     (Corr)     .00000     32.179       2577    
+Enrty.TranTime                              .00000     .00000     .00000     .00000       2577    
+Enrty.OtherTime                             .00000     .00000     .00000     .00000       2577    
+Enrty.TotalTime                             9.3421     (Corr)     .60136     33.942       2577    
+SC3.Queue.WaitingTime                       2.1274     (Corr)     .00000     7.2826        625    
+IDCheck4.Queue.WaitingTime                  5.8930     (Corr)     .00000     27.764        600    
+IDCheck3.Queue.WaitingTime                  5.7008     (Corr)     .00000     20.853        671    
+IDCheck2.Queue.WaitingTime                  5.9895     (Corr)     .00000     23.289        650    
+IDCheck1.Queue.WaitingTime                  5.8474     (Corr)     .00000     23.983        692    
+SC4.Queue.WaitingTime                       2.2056     (Corr)     .00000     6.7400        548    
+SC2.Queue.WaitingTime                       2.0923     (Corr)     .00000     7.1096        699    
+SC1.Queue.WaitingTime                       2.2372     (Corr)     .00000     7.5309        709    
+
+                                     DISCRETE-CHANGE VARIABLES
+
+Identifier                                  Average   Half Width  Minimum    Maximum   Final Value
+___________________________________________________________________________________________________
+
+Enrty.WIP                                   47.162     (Corr)     .00000     145.00     92.000    
+CH4.NumberBusy                              .76239     (Insuf)    .00000     1.0000     1.0000    
+CH4.NumberScheduled                         1.0000     (Insuf)    1.0000     1.0000     1.0000    
+CH4.Utilization                             .76239     (Insuf)    .00000     1.0000     1.0000    
+CH1.NumberBusy                              .98652     (Insuf)    .00000     1.0000     1.0000    
+CH1.NumberScheduled                         1.0000     (Insuf)    1.0000     1.0000     1.0000    
+CH1.Utilization                             .98652     (Insuf)    .00000     1.0000     1.0000    
+CH2.NumberBusy                              .96075     (Insuf)    .00000     1.0000     1.0000    
+CH2.NumberScheduled                         1.0000     (Insuf)    1.0000     1.0000     1.0000    
+CH2.Utilization                             .96075     (Insuf)    .00000     1.0000     1.0000    
+CH3.NumberBusy                              .88086     (Insuf)    .00000     1.0000     1.0000    
+CH3.NumberScheduled                         1.0000     (Insuf)    1.0000     1.0000     1.0000    
+CH3.Utilization                             .88086     (Insuf)    .00000     1.0000     1.0000    
+Checker2.NumberBusy                         .93190     (Insuf)    .00000     1.0000     1.0000    
+Checker2.NumberScheduled                    1.0000     (Insuf)    1.0000     1.0000     1.0000    
+Checker2.Utilization                        .93190     (Insuf)    .00000     1.0000     1.0000    
+Checker3.NumberBusy                         .87481     (Insuf)    .00000     1.0000     1.0000    
+Checker3.NumberScheduled                    1.0000     (Insuf)    1.0000     1.0000     1.0000    
+Checker3.Utilization                        .87481     (Insuf)    .00000     1.0000     1.0000    
+Checker1.NumberBusy                         .94276     (Insuf)    .00000     1.0000     1.0000    
+Checker1.NumberScheduled                    1.0000     (Insuf)    1.0000     1.0000     1.0000    
+Checker1.Utilization                        .94276     (Insuf)    .00000     1.0000     1.0000    
+Checker4.NumberBusy                         .83195     (Insuf)    .00000     1.0000     1.0000    
+Checker4.NumberScheduled                    1.0000     (Insuf)    1.0000     1.0000     1.0000    
+Checker4.Utilization                        .83195     (Insuf)    .00000     1.0000     1.0000    
+SC3.Queue.NumberInQueue                     2.4919     (Corr)     .00000     9.0000     7.0000    
+IDCheck4.Queue.NumberInQueue                7.0663     (Corr)     .00000     34.000     16.000    
+IDCheck3.Queue.NumberInQueue                7.2060     (Corr)     .00000     35.000     12.000    
+IDCheck2.Queue.NumberInQueue                7.5244     (Corr)     .00000     35.000     15.000    
+IDCheck1.Queue.NumberInQueue                7.7341     (Corr)     .00000     35.000     13.000    
+SC4.Queue.NumberInQueue                     2.2646     (Corr)     .00000     9.0000     7.0000    
+SC2.Queue.NumberInQueue                     2.7347     (Corr)     .00000     10.000     7.0000    
+SC1.Queue.NumberInQueue                     2.9680     (Corr)     .00000     10.000     7.0000    
+
+                                             OUTPUTS
+
+Identifier                                   Value
+_____________________________________________________________
+
+Enrty.NumberIn                              2669.0    
+Enrty.NumberOut                             2577.0    
+CH4.NumberSeized                            548.00    
+CH4.ScheduledUtilization                    .76239    
+CH1.NumberSeized                            709.00    
+CH1.ScheduledUtilization                    .98652    
+CH2.NumberSeized                            699.00    
+CH2.ScheduledUtilization                    .96075    
+CH3.NumberSeized                            625.00    
+CH3.ScheduledUtilization                    .88086    
+Checker2.NumberSeized                       650.00    
+Checker2.ScheduledUtilization               .93190    
+Checker3.NumberSeized                       671.00    
+Checker3.ScheduledUtilization               .87481    
+Checker1.NumberSeized                       692.00    
+Checker1.ScheduledUtilization               .94276    
+Checker4.NumberSeized                       600.00    
+Checker4.ScheduledUtilization               .83195    
+System.NumberOut                            2577.0    
+
+
+Simulation run time: 2.40 minutes.
+Simulation run complete.

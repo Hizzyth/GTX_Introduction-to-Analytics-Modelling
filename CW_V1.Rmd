@@ -1,0 +1,282 @@
+---
+title: "CW6"
+author: "HT"
+date: "6/24/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# Importing libraries
+```{r}
+library(dplyr) # For mutating columns
+library(ggplot2)# To generate Plots
+library(scales) # Converting to %
+library(kknn) # For model quality and accuracy
+
+rm(list = ls())
+```
+
+# Importing and exploring data
+```{r}
+
+set.seed(562)
+
+# Importing Data
+bc.data <- read.delim("breast-cancer-wisconsin.data.txt", stringsAsFactors = FALSE, header = FALSE, sep = ',')
+
+head(bc.data)
+
+# Function to identify the missing values
+
+for (i in 2:11) {
+  print(paste0("V",i))
+  print(table(bc.data[,i]))
+}
+
+
+#  show column with missing value
+table(bc.data$V7)
+
+# dataset to be imputed
+bc.data_impute <- which(bc.data$V7 == "?")
+bc.data_impute
+
+# QUantifying the missing data
+percent(length(bc.data_impute)/nrow(bc.data))
+
+# Since missing data is less than 5%, we can proceed with imputing.
+
+# Split data into clean and missing
+
+bc.data.clean <- bc.data[-bc.data_impute,]
+bc.data.missing <- bc.data[bc.data_impute,]
+
+# Checking for impact of missing data by comparing whole dataset propotion with Clean data set propotion and misisng data set propotion
+prop.table(table(bc.data$V11))
+prop.table(table(bc.data.clean$V11))
+prop.table(table(bc.data.missing$V11))
+
+```
+
+# 14.1.1 Imputing missing values with Mode/Mean
+
+```{r}
+
+# Although we are using numeric values but the model is classifying in the end, so I will compute both Mode and Median.
+
+# Calculating Mode
+
+# Function for calculating mode
+
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+V7.mode <- Mode(bc.data.clean[,'V7'])
+
+print(paste0("Mode for V7 Column: ", V7.mode))
+
+# Imputing the mode values 
+
+bc.data.impute.mode <- bc.data
+bc.data.impute.mode[bc.data_impute,]$V7<- V7.mode
+
+# Check for the replaced values
+table(bc.data.impute.mode$V7)
+
+# All 16 missing values are replaced with the Mode value of 1
+
+# Calculating mean
+
+V7.mean <- mean(as.integer(bc.data.clean[,'V7']))
+
+# Round the value as we shall have integers between 1~10
+round(V7.mean)
+
+# Imputing the mean values
+
+bc.data.impute.mean <- bc.data
+bc.data.impute.mean[bc.data_impute,]$V7<- round(V7.mean)
+
+# Check for the replaced values
+table(bc.data.impute.mean$V7)
+
+```
+
+# 14.2.2 Using Regression model to impute missing data
+
+```{r}
+
+# Creating linear model excluding the V11 column, model will be based on clean data 
+
+bc.data.clean.reg_model <- lm(V7~.,data = bc.data.clean[,2:10])
+summary(bc.data.clean.reg_model)
+
+# Calculate the AIC to select the most relevant attributes and refine the model
+step(bc.data.clean.reg_model)
+
+# Refining the model based on AIC values
+
+bc.data.clean.reg_model_refined <- lm(V7~ V2 + V4 + V5 + V8, data = bc.data.clean[,2:10])
+summary(bc.data.clean.reg_model_refined)
+
+# Running prediction for missing values
+
+V7.lm_refined <- predict(bc.data.clean.reg_model_refined, bc.data.missing)
+V7.lm_refined
+round(V7.lm_refined)
+
+# Imputing the model based values
+
+bc.data.impute.lm_refined <- bc.data
+bc.data.impute.lm_refined[bc.data_impute,]$V7<- round(V7.lm_refined)
+
+# Check for the replaced values
+table(bc.data.impute.lm_refined$V7)
+
+```
+
+# 14.1.3: Using Regression with Perturbation to impute values
+
+```{r}
+
+# Generating the random values based on regression model and standard deviation
+V7.lm_refined.perturb <- rnorm(nrow(bc.data.missing), V7.lm_refined, sd(V7.lm_refined))
+
+V7.lm_refined.perturb
+
+# Observed negative values, each of those to be set to 1 i.e. the minimum possible value in acceptable range 1~9.
+
+# Imputing the perturbed values, and then converting negative values to 1.
+
+bc.data.impute.lm_refined_perturb <- bc.data
+bc.data.impute.lm_refined_perturb[bc.data_impute,]$V7<- round(V7.lm_refined.perturb)
+
+table(bc.data.impute.lm_refined_perturb$V7)
+
+bc.data.impute.lm_refined_perturb$V7[bc.data.impute.lm_refined_perturb$V7 < 1] <- 1
+
+# Confirm if the changes have been implemented
+table(bc.data.impute.lm_refined_perturb$V7)
+
+```
+
+# 14.1.4.1: Comparing results and quality of classification from question 1,2,3
+
+```{r}
+
+# Spliting the data
+
+training <- sample(nrow(bc.data), size = floor(nrow(bc.data) * 0.7))
+validation <- setdiff(1:nrow(bc.data), training)
+
+# For mode imputation
+
+for (k in 1:5) {
+  
+  knn_model <- kknn(V11~V2+V3+V4+V5+V6+V7+V8+V9+V10, bc.data.impute.mode[training,], bc.data.impute.mode[validation,], k=k)
+  
+  pred <- as.integer(fitted(knn_model)+0.5) # round off to 2 or 4
+  
+  acc_knn = sum(pred == bc.data.impute.mode[validation,]$V11) / nrow(bc.data.impute.mode[validation,])
+  print(acc_knn)
+}
+
+# For Mean Impute
+
+for (k in 1:5) {
+  
+  knn_model <- kknn(V11~V2+V3+V4+V5+V6+V7+V8+V9+V10, bc.data.impute.mean[training,], bc.data.impute.mean[validation,], k=k)
+  
+  pred <- as.integer(fitted(knn_model)+0.5) # round off to 2 or 4
+  
+  acc_knn = sum(pred == bc.data.impute.mean[validation,]$V11) / nrow(bc.data.impute.mean[validation,])
+  print(acc_knn)
+}
+
+# For Regression Impute
+
+for (k in 1:5) {
+  
+  knn_model <- kknn(V11~V2+V3+V4+V5+V6+V7+V8+V9+V10, bc.data.impute.lm_refined[training,], bc.data.impute.lm_refined[validation,], k=k)
+  
+  pred <- as.integer(fitted(knn_model)+0.5) # round off to 2 or 4
+  
+  acc_knn = sum(pred == bc.data.impute.lm_refined[validation,]$V11) / nrow(bc.data.impute.lm_refined[validation,])
+  print(acc_knn)
+}
+
+# For Perturbed Regression Impute
+
+for (k in 1:5) {
+  
+  knn_model <- kknn(V11~V2+V3+V4+V5+V6+V7+V8+V9+V10, bc.data.impute.lm_refined_perturb[training,], bc.data.impute.lm_refined_perturb[validation,], k=k)
+  
+  pred <- as.integer(fitted(knn_model)+0.5) # round off to 2 or 4
+  
+  acc_knn = sum(pred == bc.data.impute.lm_refined_perturb[validation,]$V11) / nrow(bc.data.impute.lm_refined_perturb[validation,])
+  print(acc_knn)
+}
+
+```
+
+# 14.1.4.2: Comparing results and quality of classification with missing values removed
+
+```{r}
+# Creating a new split as the cleaned data has fewer number of rows hence the reference number of rows will change
+training_clean <- sample(nrow(bc.data.clean), size = floor(nrow(bc.data.clean) * 0.7))
+validation_clean <- setdiff(1:nrow(bc.data.clean), training)
+
+# For clean data (excluding missing(?) data rows)
+for (k in 1:5) {
+  
+  knn_model <- kknn(V11~V2+V3+V4+V5+V6+V7+V8+V9+V10, bc.data.clean[training_clean,], bc.data.clean[validation_clean,], k=k)
+  
+  pred <- as.integer(fitted(knn_model)+0.5) # round off to 2 or 4
+  
+  acc_knn = sum(pred == bc.data.clean[validation_clean,]$V11) / nrow(bc.data.clean[validation_clean,])
+  print(acc_knn)
+}
+
+```
+
+# 14.1.4.2: Comparing results and quality of classification with binary variables
+
+```{r}
+
+# Creating a new dataset for binary interaction
+bc.data.binary<- bc.data
+
+# mutating Columns for binary interaction between V7 and V12 under V13
+bc.data.binary <- bc.data %>%
+  mutate(V12 = if_else(bc.data$V7 == "?",0,1))%>%
+  mutate(V13 = ifelse(V12 == 0, 0, paste0(bc.data.binary$V7)))
+
+# For data with binary interaction
+for (k in 1:5) {
+  
+  knn_model <- kknn(V11~V2+V3+V4+V5+V6+V7+V8+V9+V10, bc.data.binary[training,], bc.data.binary[validation,], k=k)
+  
+  pred <- as.integer(fitted(knn_model)+0.5) # round off to 2 or 4
+  
+  acc_knn = sum(pred == bc.data.binary[validation,]$V11) / nrow(bc.data.binary[validation,])
+  print(acc_knn)
+}
+
+
+```
+
+> Conclusions
+
+* **Model accuracy improves with clean data, apart from that all other methods provide the accuracy in very close range (92.8-95.7%)**
+* **Mode approach is not very accurate** as it assigns all missing values to be 1, whereas with every other method the values were varying above 1
+* With **pertrubation some negative values were introduced**, those had to set to 1 (minimum in the acceptable range of 1~9)
